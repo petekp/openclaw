@@ -1,5 +1,4 @@
 import { parseAgentSessionKey } from "../../../src/sessions/session-key-utils.js";
-import { scheduleChatScroll } from "./app-scroll.ts";
 import { setLastActiveSessionKey } from "./app-settings.ts";
 import { resetToolStream } from "./app-tool-stream.ts";
 import type { OpenClawApp } from "./app.ts";
@@ -124,7 +123,6 @@ async function sendChatMessageNow(
   if (ok && opts?.restoreAttachments && opts.previousAttachments?.length) {
     host.chatAttachments = opts.previousAttachments;
   }
-  scheduleChatScroll(host as unknown as Parameters<typeof scheduleChatScroll>[0]);
   if (ok && !host.chatRunId) {
     void flushChatQueue(host);
   }
@@ -210,8 +208,8 @@ export async function refreshChat(host: ChatHost, opts?: { scheduleScroll?: bool
     }),
     refreshChatAvatar(host),
   ]);
-  if (opts?.scheduleScroll !== false) {
-    scheduleChatScroll(host as unknown as Parameters<typeof scheduleChatScroll>[0]);
+  if (opts?.scheduleScroll === false) {
+    return;
   }
 }
 

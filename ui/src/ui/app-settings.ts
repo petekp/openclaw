@@ -5,7 +5,7 @@ import {
   startDebugPolling,
   stopDebugPolling,
 } from "./app-polling.ts";
-import { scheduleChatScroll, scheduleLogsScroll } from "./app-scroll.ts";
+import { scheduleLogsScroll } from "./app-scroll.ts";
 import type { OpenClawApp } from "./app.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
@@ -43,7 +43,6 @@ type SettingsHost = {
   sessionKey: string;
   tab: Tab;
   connected: boolean;
-  chatHasAutoScrolled: boolean;
   logsAtBottom: boolean;
   eventLog: unknown[];
   eventLogBuffer: unknown[];
@@ -147,9 +146,6 @@ export function setTab(host: SettingsHost, next: Tab) {
   if (host.tab !== next) {
     host.tab = next;
   }
-  if (next === "chat") {
-    host.chatHasAutoScrolled = false;
-  }
   if (next === "logs") {
     startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
   } else {
@@ -227,10 +223,6 @@ export async function refreshActiveTab(host: SettingsHost) {
   }
   if (host.tab === "chat") {
     await refreshChat(host as unknown as Parameters<typeof refreshChat>[0]);
-    scheduleChatScroll(
-      host as unknown as Parameters<typeof scheduleChatScroll>[0],
-      !host.chatHasAutoScrolled,
-    );
   }
   if (host.tab === "config") {
     await loadConfigSchema(host as unknown as OpenClawApp);
@@ -345,9 +337,6 @@ export function onPopState(host: SettingsHost) {
 export function setTabFromRoute(host: SettingsHost, next: Tab) {
   if (host.tab !== next) {
     host.tab = next;
-  }
-  if (next === "chat") {
-    host.chatHasAutoScrolled = false;
   }
   if (next === "logs") {
     startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
