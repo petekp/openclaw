@@ -328,9 +328,18 @@
   align-items: stretch;
 }
 
-/* Hide the "Message" label - keep textarea only */
+/* Keep the "Message" label for screen readers while hiding it visually */
 .chat-compose__field > span {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
 }
 
 /* Override .field textarea min-height (180px) from components.css */

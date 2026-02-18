@@ -632,6 +632,22 @@ describe("chat view", () => {
     expect(input?.disabled).toBe(true);
   });
 
+  it("keeps an accessible composer label for screen readers", async () => {
+    const container = createContainer();
+    render(renderChat(createProps()), container);
+    await flushDom();
+
+    const input = container.querySelector<HTMLTextAreaElement>("textarea");
+    expect(input).not.toBeNull();
+    if (!input) {
+      return;
+    }
+
+    const label = input.labels?.[0];
+    expect(label).not.toBeUndefined();
+    expect(label?.textContent).toContain("Message");
+  });
+
   it("prevents default paste when image files are included", async () => {
     const container = createContainer();
     render(
