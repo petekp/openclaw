@@ -27,10 +27,15 @@ export type ChatEventPayload = {
   errorMessage?: string;
 };
 
+const loadChatHistoryRequestIds = new WeakMap<ChatState, number>();
+
 export async function loadChatHistory(state: ChatState) {
   if (!state.client || !state.connected) {
     return;
   }
+  const requestedSessionKey = state.sessionKey;
+  const requestId = (loadChatHistoryRequestIds.get(state) ?? 0) + 1;
+  loadChatHistoryRequestIds.set(state, requestId);
   state.chatLoading = true;
   state.lastError = null;
   try {
@@ -41,13 +46,51 @@ export async function loadChatHistory(state: ChatState) {
         limit: 200,
       },
     );
-    state.chatMessages = Array.isArray(res.messages) ? res.messages : [];
+    if (
+      loadChatHistoryRequestIds.get(state) !== requestId ||
+      state.sessionKey !== requestedSessionKey
+    ) {
+      return;
+    }
+    state.chatMessages = Array.isArray(res.messages)
+      ? res.messages
+          .map(normalizeHistoryMessage)
+          .filter((message): message is NonNullable<typeof message> => message !== null)
+      : [];
     state.chatThinkingLevel = res.thinkingLevel ?? null;
   } catch (err) {
-    state.lastError = String(err);
+    if (
+      loadChatHistoryRequestIds.get(state) === requestId &&
+      state.sessionKey === requestedSessionKey
+    ) {
+      state.lastError = String(err);
+    }
   } finally {
-    state.chatLoading = false;
+    if (loadChatHistoryRequestIds.get(state) === requestId) {
+      state.chatLoading = false;
+    }
   }
+}
+
+function normalizeHistoryMessage(message: unknown): unknown {
+  if (!message || typeof message !== "object") {
+    return message;
+  }
+  const candidate = message as Record<string, unknown>;
+  if (candidate.role !== "assistant") {
+    return message;
+  }
+  if (typeof candidate.content === "string") {
+    const normalized = {
+      ...candidate,
+      content: [{ type: "text", text: candidate.content }],
+    };
+    return hasRenderableAssistantContent(normalized.content) ? normalized : null;
+  }
+  if (!Array.isArray(candidate.content)) {
+    return null;
+  }
+  return hasRenderableAssistantContent(candidate.content) ? message : null;
 }
 
 function dataUrlToBase64(dataUrl: string): { content: string; mimeType: string } | null {
@@ -69,7 +112,32 @@ function normalizeAbortedAssistantMessage(message: unknown): Record<string, unkn
   if (!("content" in candidate) || !Array.isArray(candidate.content)) {
     return null;
   }
+  if (!hasRenderableAssistantContent(candidate.content)) {
+    return null;
+  }
   return candidate;
+}
+
+function hasRenderableAssistantContent(content: unknown[]): boolean {
+  if (content.length === 0) {
+    return false;
+  }
+  for (const part of content) {
+    if (!part || typeof part !== "object") {
+      continue;
+    }
+    const value = part as Record<string, unknown>;
+    const type = typeof value.type === "string" ? value.type.toLowerCase() : "";
+    if (type === "text") {
+      if (typeof value.text === "string" && value.text.trim().length > 0) {
+        return true;
+      }
+      continue;
+    }
+    // Non-text parts (e.g. images, tool results) may still render meaningful UI.
+    return true;
+  }
+  return false;
 }
 
 export async function sendChatMessage(
