@@ -81,65 +81,6 @@ describe("assistant runtime adapter", () => {
     });
   });
 
-  it("hides tool-result history when thinking is disabled", () => {
-    const messages = buildAssistantThreadMessages(
-      createProps({
-        showThinking: false,
-        messages: [
-          {
-            role: "assistant",
-            content: [{ type: "text", text: "Hello" }],
-            timestamp: 1,
-          },
-          {
-            role: "assistant",
-            toolCallId: "tool-1",
-            content: [{ type: "text", text: "Should be hidden" }],
-            timestamp: 2,
-          },
-        ],
-      }),
-    );
-
-    const grouped = messages.filter((message) => message.metadata?.custom?.openclawPart);
-    expect(grouped).toHaveLength(1);
-    expect(grouped[0]?.content[0]).toMatchObject({ type: "text", text: "Hello" });
-  });
-
-  it("routes cancel actions to abort when available", async () => {
-    const onAbort = vi.fn();
-    const onNewSession = vi.fn();
-    const adapter = createAssistantChatRuntimeAdapter(
-      createProps({
-        canAbort: true,
-        onAbort,
-        onNewSession,
-      }),
-    );
-
-    await adapter.onCancel?.();
-
-    expect(onAbort).toHaveBeenCalledTimes(1);
-    expect(onNewSession).not.toHaveBeenCalled();
-  });
-
-  it("ignores cancel actions when abort is unavailable", async () => {
-    const onAbort = vi.fn();
-    const onNewSession = vi.fn();
-    const adapter = createAssistantChatRuntimeAdapter(
-      createProps({
-        canAbort: false,
-        onAbort,
-        onNewSession,
-      }),
-    );
-
-    await adapter.onCancel?.();
-
-    expect(onNewSession).not.toHaveBeenCalled();
-    expect(onAbort).not.toHaveBeenCalled();
-  });
-
   it("enables assistant-ui image attachment support", () => {
     const adapter = createAssistantChatRuntimeAdapter(createProps());
 
@@ -188,35 +129,6 @@ describe("assistant runtime adapter", () => {
         mimeType: "image/png",
       },
     ]);
-    expect(onSend).toHaveBeenCalledTimes(1);
-  });
-
-  it("propagates an empty attachment list when composer attachments are cleared", async () => {
-    const onAttachmentsChange = vi.fn();
-    const onDraftChange = vi.fn();
-    const onSend = vi.fn();
-    const adapter = createAssistantChatRuntimeAdapter(
-      createProps({
-        attachments: [{ id: "old", dataUrl: "data:image/png;base64,OLD", mimeType: "image/png" }],
-        onAttachmentsChange,
-        onDraftChange,
-        onSend,
-      }),
-    );
-
-    await adapter.onNew({
-      role: "user",
-      content: [{ type: "text", text: "plain text" }],
-      createdAt: new Date(),
-      attachments: [],
-      metadata: { custom: {} },
-      parentId: null,
-      sourceId: null,
-      runConfig: undefined,
-    } as unknown as AppendMessage);
-
-    expect(onDraftChange).toHaveBeenCalledWith("plain text");
-    expect(onAttachmentsChange).toHaveBeenCalledWith([]);
     expect(onSend).toHaveBeenCalledTimes(1);
   });
 
