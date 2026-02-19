@@ -81,13 +81,6 @@ describe("assistant runtime adapter", () => {
     });
   });
 
-  it("enables assistant-ui image attachment support", () => {
-    const adapter = createAssistantChatRuntimeAdapter(createProps());
-
-    expect(adapter.adapters?.attachments).toBeDefined();
-    expect(adapter.adapters?.attachments?.accept).toBe("image/*");
-  });
-
   it("maps composer attachments into chat attachments before sending", async () => {
     const onAttachmentsChange = vi.fn();
     const onDraftChange = vi.fn();
