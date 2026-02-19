@@ -1527,19 +1527,19 @@
 }
 
 .shell--chat .chat-compose {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
+  position: relative;
+  bottom: auto;
+  z-index: 1;
   margin-top: 0;
-  padding-top: 12px;
-  background: linear-gradient(180deg, transparent 0%, var(--bg) 40%);
+  padding-top: 0;
+  background: transparent;
 }
 
 .shell--chat-focus .chat-compose {
-  bottom: calc(var(--shell-pad) + 8px);
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  border-bottom-left-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-lg);
+  bottom: auto;
+  padding-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .chat-compose__field {

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach } from "vitest";
-import { OpenClawApp } from "../app.ts";
+// Ensure custom element registration side-effects always run in browser tests.
+import "../app.ts";
+import type { OpenClawApp } from "../app.ts";
 
 export function mountApp(pathname: string) {
   window.history.replaceState({}, "", pathname);

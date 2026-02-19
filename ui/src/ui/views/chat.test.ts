@@ -1,5 +1,6 @@
 import { render } from "lit";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { OpenClawApp } from "../app.ts";
 import type { SessionsListResult } from "../types.ts";
 import { renderChat, type ChatProps } from "./chat.ts";
 
@@ -48,9 +49,25 @@ function createProps(overrides: Partial<ChatProps> = {}): ChatProps {
   };
 }
 
+async function flushDom() {
+  await Promise.resolve();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+function createContainer() {
+  const container = document.createElement("div");
+  document.body.append(container);
+  return container;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  document.body.innerHTML = "";
+});
+
 describe("chat view", () => {
-  it("renders compacting indicator as a badge", () => {
-    const container = document.createElement("div");
+  it("renders compacting indicator as a badge", async () => {
+    const container = createContainer();
     render(
       renderChat(
         createProps({
@@ -63,14 +80,15 @@ describe("chat view", () => {
       ),
       container,
     );
+    await flushDom();
 
     const indicator = container.querySelector(".compaction-indicator--active");
     expect(indicator).not.toBeNull();
     expect(indicator?.textContent).toContain("Compacting context...");
   });
 
-  it("renders completion indicator shortly after compaction", () => {
-    const container = document.createElement("div");
+  it("renders completion indicator shortly after compaction", async () => {
+    const container = createContainer();
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
     render(
       renderChat(
@@ -84,6 +102,7 @@ describe("chat view", () => {
       ),
       container,
     );
+    await flushDom();
 
     const indicator = container.querySelector(".compaction-indicator--complete");
     expect(indicator).not.toBeNull();
@@ -91,8 +110,8 @@ describe("chat view", () => {
     nowSpy.mockRestore();
   });
 
-  it("hides stale compaction completion indicator", () => {
-    const container = document.createElement("div");
+  it("hides stale compaction completion indicator", async () => {
+    const container = createContainer();
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(10_000);
     render(
       renderChat(
@@ -106,13 +125,37 @@ describe("chat view", () => {
       ),
       container,
     );
+    await flushDom();
 
     expect(container.querySelector(".compaction-indicator")).toBeNull();
     nowSpy.mockRestore();
   });
 
-  it("shows a stop button when aborting is available", () => {
-    const container = document.createElement("div");
+  it("auto-hides compaction completion indicator after timeout", async () => {
+    const container = createContainer();
+    const completedAt = Date.now() - (5_000 - 50);
+    render(
+      renderChat(
+        createProps({
+          compactionStatus: {
+            active: false,
+            startedAt: completedAt,
+            completedAt,
+          },
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+    expect(container.querySelector(".compaction-indicator--complete")).not.toBeNull();
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 80));
+    await flushDom();
+    expect(container.querySelector(".compaction-indicator")).toBeNull();
+  });
+
+  it("shows a stop button when aborting is available", async () => {
+    const container = createContainer();
     const onAbort = vi.fn();
     render(
       renderChat(
@@ -123,6 +166,7 @@ describe("chat view", () => {
       ),
       container,
     );
+    await flushDom();
 
     const stopButton = Array.from(container.querySelectorAll("button")).find(
       (btn) => btn.textContent?.trim() === "Stop",
@@ -133,8 +177,8 @@ describe("chat view", () => {
     expect(container.textContent).not.toContain("New session");
   });
 
-  it("shows a new session button when aborting is unavailable", () => {
-    const container = document.createElement("div");
+  it("shows a new session button when aborting is unavailable", async () => {
+    const container = createContainer();
     const onNewSession = vi.fn();
     render(
       renderChat(
@@ -145,6 +189,7 @@ describe("chat view", () => {
       ),
       container,
     );
+    await flushDom();
 
     const newSessionButton = Array.from(container.querySelectorAll("button")).find(
       (btn) => btn.textContent?.trim() === "New session",
@@ -153,5 +198,171 @@ describe("chat view", () => {
     newSessionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onNewSession).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain("Stop");
+  });
+
+  it("does not render assistant groups for non-renderable assistant content", async () => {
+    const container = createContainer();
+    render(
+      renderChat(
+        createProps({
+          messages: [
+            {
+              role: "assistant",
+              content: [{ type: "unknown_block", payload: "x" }],
+              timestamp: Date.now(),
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    expect(container.querySelector(".chat-group.assistant")).toBeNull();
+  });
+
+  it("uses the latest onReloadMessage callback after rerender", async () => {
+    const container = createContainer();
+    const firstOnReloadMessage = vi.fn();
+    const secondOnReloadMessage = vi.fn();
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "Show me a status summary." }],
+        timestamp: Date.now() - 1_000,
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Gateway connected." }],
+        timestamp: Date.now(),
+      },
+    ];
+
+    render(
+      renderChat(
+        createProps({
+          onReloadMessage: firstOnReloadMessage,
+          messages,
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    render(
+      renderChat(
+        createProps({
+          onReloadMessage: secondOnReloadMessage,
+          messages,
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    const retryButton = container.querySelector<HTMLButtonElement>(
+      '.chat-group.assistant .chat-message-action[aria-label="Retry response"]',
+    );
+    expect(retryButton).not.toBeNull();
+    retryButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    expect(firstOnReloadMessage).not.toHaveBeenCalled();
+    expect(secondOnReloadMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an accessible composer label for screen readers", async () => {
+    const container = createContainer();
+    render(renderChat(createProps()), container);
+    await flushDom();
+
+    const input = container.querySelector<HTMLTextAreaElement>("textarea");
+    expect(input).not.toBeNull();
+    if (!input) {
+      return;
+    }
+
+    const label = input.labels?.[0];
+    expect(label).not.toBeUndefined();
+    expect(label?.textContent).toContain("Message");
+  });
+
+  it("opens http image URLs in a new tab with noopener/noreferrer", async () => {
+    const container = createContainer();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(
+      renderChat(
+        createProps({
+          messages: [
+            {
+              role: "assistant",
+              content: [{ type: "image_url", image_url: { url: "https://example.com/cat.png" } }],
+              timestamp: Date.now(),
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    const image = container.querySelector<HTMLImageElement>(".chat-message-image");
+    expect(image).not.toBeNull();
+    image?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://example.com/cat.png",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    openSpy.mockRestore();
+  });
+
+  it("does not open disallowed image URL schemes", async () => {
+    const container = createContainer();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(
+      renderChat(
+        createProps({
+          messages: [
+            {
+              role: "assistant",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: { url: "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" },
+                },
+              ],
+              timestamp: Date.now(),
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    const image = container.querySelector<HTMLImageElement>(".chat-message-image");
+    expect(image).not.toBeNull();
+    image?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(openSpy).not.toHaveBeenCalled();
+    openSpy.mockRestore();
+  });
+
+  it("scrollToBottom clicks the composer-dock new-messages action", () => {
+    const app = new OpenClawApp();
+    const action = document.createElement("button");
+    action.className = "chat-new-messages";
+    const clickSpy = vi.spyOn(action, "click");
+    const dock = document.createElement("div");
+    dock.className = "chat-compose__scroll";
+    dock.append(action);
+    app.append(dock);
+
+    app.scrollToBottom();
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 });

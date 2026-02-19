@@ -7,7 +7,7 @@ import {
   startDebugPolling,
   stopDebugPolling,
 } from "./app-polling.ts";
-import { observeTopbar, scheduleChatScroll, scheduleLogsScroll } from "./app-scroll.ts";
+import { observeTopbar, scheduleLogsScroll } from "./app-scroll.ts";
 import {
   applySettingsFromUrl,
   attachThemeListener,
@@ -25,12 +25,7 @@ type LifecycleHost = {
   assistantName: string;
   assistantAvatar: string | null;
   assistantAgentId: string | null;
-  chatHasAutoScrolled: boolean;
   chatManualRefreshInFlight: boolean;
-  chatLoading: boolean;
-  chatMessages: unknown[];
-  chatToolMessages: unknown[];
-  chatStream: string;
   logsAutoFollow: boolean;
   logsAtBottom: boolean;
   logsEntries: unknown[];
@@ -73,22 +68,6 @@ export function handleDisconnected(host: LifecycleHost) {
 export function handleUpdated(host: LifecycleHost, changed: Map<PropertyKey, unknown>) {
   if (host.tab === "chat" && host.chatManualRefreshInFlight) {
     return;
-  }
-  if (
-    host.tab === "chat" &&
-    (changed.has("chatMessages") ||
-      changed.has("chatToolMessages") ||
-      changed.has("chatStream") ||
-      changed.has("chatLoading") ||
-      changed.has("tab"))
-  ) {
-    const forcedByTab = changed.has("tab");
-    const forcedByLoad =
-      changed.has("chatLoading") && changed.get("chatLoading") === true && !host.chatLoading;
-    scheduleChatScroll(
-      host as unknown as Parameters<typeof scheduleChatScroll>[0],
-      forcedByTab || forcedByLoad || !host.chatHasAutoScrolled,
-    );
   }
   if (
     host.tab === "logs" &&

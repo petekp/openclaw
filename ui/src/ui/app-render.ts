@@ -194,7 +194,7 @@ export function renderApp(state: AppViewState) {
             ${state.tab === "usage" ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
           </div>
           <div class="page-meta">
-            ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
+            ${state.lastError && !isChat ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
             ${isChat ? renderChatControls(state) : nothing}
           </div>
         </section>
@@ -837,17 +837,22 @@ export function renderApp(state: AppViewState) {
                     chatFocusMode: !state.settings.chatFocusMode,
                   });
                 },
-                onChatScroll: (event) => state.handleChatScroll(event),
                 onDraftChange: (next) => (state.chatMessage = next),
                 attachments: state.chatAttachments,
                 onAttachmentsChange: (next) => (state.chatAttachments = next),
                 onSend: () => state.handleSendChat(),
+                onEditMessage: (request) => state.handleSendChat(request.text),
+                onReloadMessage: (request) => {
+                  const prompt = request.prompt.trim();
+                  if (!prompt) {
+                    return;
+                  }
+                  return state.handleSendChat(prompt);
+                },
                 canAbort: Boolean(state.chatRunId),
                 onAbort: () => void state.handleAbortChat(),
                 onQueueRemove: (id) => state.removeQueuedMessage(id),
                 onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
-                showNewMessages: state.chatNewMessagesBelow && !state.chatManualRefreshInFlight,
-                onScrollToBottom: () => state.scrollToBottom(),
                 // Sidebar props for tool output viewing
                 sidebarOpen: state.sidebarOpen,
                 sidebarContent: state.sidebarContent,

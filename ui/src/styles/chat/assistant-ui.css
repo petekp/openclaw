@@ -1,0 +1,168 @@
+openclaw-chat-react-host {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+}
+
+openclaw-chat-react-host > .chat {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+openclaw-chat-react-host .chat-compose {
+  gap: 10px;
+}
+
+openclaw-chat-react-host .chat-compose__row.aui-composer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "attach field actions";
+  align-items: end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+openclaw-chat-react-host .chat-compose__field.aui-composer__input-wrap {
+  grid-area: field;
+  margin: 0;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+openclaw-chat-react-host .chat-compose__field.aui-composer__input-wrap .aui-composer__input {
+  width: 100%;
+  min-height: 44px;
+  max-height: 220px;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--panel);
+  font-size: 15px;
+  line-height: 1.45;
+  box-shadow: none;
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+openclaw-chat-react-host .chat-compose__field.aui-composer__input-wrap .aui-composer__input:focus {
+  border: 1px solid var(--border-strong);
+  background: var(--panel-strong);
+  box-shadow: none;
+}
+
+openclaw-chat-react-host .chat-compose__actions.aui-composer__actions {
+  grid-area: actions;
+  align-items: flex-end;
+  align-self: flex-end;
+  gap: 8px;
+  padding: 2px;
+}
+
+openclaw-chat-react-host .chat-compose__actions.aui-composer__actions .btn {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-weight: 500;
+}
+
+openclaw-chat-react-host .chat-compose__attach {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  border-style: dashed;
+  border-radius: 12px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+openclaw-chat-react-host .chat-compose__attach--left {
+  grid-area: attach;
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+
+openclaw-chat-react-host .chat-compose__attach svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+openclaw-chat-react-host .chat-compose__actions .chat-compose__queue {
+  border-color: var(--border);
+  background: var(--secondary);
+  color: var(--text);
+}
+
+openclaw-chat-react-host .chat-compose__actions .chat-compose__send {
+  min-width: 94px;
+  justify-content: center;
+}
+
+openclaw-chat-react-host .chat-compose__actions .chat-compose__send .btn-kbd {
+  margin-left: 7px;
+}
+
+openclaw-chat-react-host .chat-attachment.aui-attachment .chat-attachment__img--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+:root[data-theme="light"] openclaw-chat-react-host .chat-compose__row.aui-composer {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 640px) {
+  openclaw-chat-react-host .chat-compose__row.aui-composer {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "attach field"
+      "actions actions";
+    align-items: end;
+  }
+
+  openclaw-chat-react-host .chat-compose__field.aui-composer__input-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  openclaw-chat-react-host .chat-compose__field.aui-composer__input-wrap .aui-composer__input {
+    min-height: 56px;
+  }
+
+  openclaw-chat-react-host .chat-compose__actions.aui-composer__actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}

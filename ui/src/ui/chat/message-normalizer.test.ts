@@ -134,9 +134,9 @@ describe("message-normalizer", () => {
       expect(normalizeRoleForGrouping("Function")).toBe("tool");
     });
 
-    it("preserves user role", () => {
+    it("normalizes user role to canonical lowercase", () => {
       expect(normalizeRoleForGrouping("user")).toBe("user");
-      expect(normalizeRoleForGrouping("User")).toBe("User");
+      expect(normalizeRoleForGrouping("User")).toBe("user");
     });
 
     it("preserves assistant role", () => {
