@@ -1,5 +1,6 @@
 import { render } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { OpenClawApp } from "../app.ts";
 import type { SessionsListResult } from "../types.ts";
 import { renderChat, type ChatProps } from "./chat.ts";
 
@@ -340,6 +341,21 @@ describe("chat view", () => {
     expect(container.querySelector(".chat-thread .chat-new-messages")).toBeNull();
   });
 
+  it("scrollToBottom clicks the composer-dock new-messages action", () => {
+    const app = new OpenClawApp();
+    const action = document.createElement("button");
+    action.className = "chat-new-messages";
+    const clickSpy = vi.spyOn(action, "click");
+    const dock = document.createElement("div");
+    dock.className = "chat-compose__scroll";
+    dock.append(action);
+    app.append(dock);
+
+    app.scrollToBottom();
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("renders user and assistant groups on assistant-ui message primitives", async () => {
     const container = createContainer();
     render(
@@ -410,6 +426,56 @@ describe("chat view", () => {
     expect(copyButton).not.toBeNull();
     expect(retryButton?.querySelector("svg")).not.toBeNull();
     expect(copyButton?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("uses the latest onReloadMessage callback after rerender", async () => {
+    const container = createContainer();
+    const firstOnReloadMessage = vi.fn();
+    const secondOnReloadMessage = vi.fn();
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "Show me a status summary." }],
+        timestamp: Date.now() - 1_000,
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Gateway connected." }],
+        timestamp: Date.now(),
+      },
+    ];
+
+    render(
+      renderChat(
+        createProps({
+          onReloadMessage: firstOnReloadMessage,
+          messages,
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    render(
+      renderChat(
+        createProps({
+          onReloadMessage: secondOnReloadMessage,
+          messages,
+        }),
+      ),
+      container,
+    );
+    await flushDom();
+
+    const retryButton = container.querySelector<HTMLButtonElement>(
+      '.chat-group.assistant .chat-message-action[aria-label="Retry response"]',
+    );
+    expect(retryButton).not.toBeNull();
+    retryButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await flushDom();
+
+    expect(firstOnReloadMessage).not.toHaveBeenCalled();
+    expect(secondOnReloadMessage).toHaveBeenCalledTimes(1);
   });
 
   it("does not render an edit action for user messages", async () => {

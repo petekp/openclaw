@@ -402,7 +402,9 @@ export class OpenClawApp extends LitElement {
   }
 
   scrollToBottom(opts?: { smooth?: boolean }) {
-    const action = this.querySelector<HTMLButtonElement>(".chat-thread-footer .chat-new-messages");
+    const action =
+      this.querySelector<HTMLButtonElement>(".chat-compose__scroll .chat-new-messages") ??
+      this.querySelector<HTMLButtonElement>(".chat-thread-footer .chat-new-messages");
     if (action && !action.disabled) {
       action.click();
       return;

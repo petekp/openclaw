@@ -978,7 +978,21 @@ export function ChatAssistantView({ props }: { props: ChatProps }) {
   );
   const runtimeAdapter = useMemo(
     () => createAssistantChatRuntimeAdapterFromMessages(props, threadMessages),
-    [props.canAbort, props.connected, props.loading, props.sending, props.stream, threadMessages],
+    [
+      props.canAbort,
+      props.canSend,
+      props.connected,
+      props.loading,
+      props.sending,
+      props.stream,
+      props.onAbort,
+      props.onAttachmentsChange,
+      props.onDraftChange,
+      props.onEditMessage,
+      props.onReloadMessage,
+      props.onSend,
+      threadMessages,
+    ],
   );
   const runtime = useExternalStoreRuntime(runtimeAdapter);
   const activeSession = props.sessions?.sessions?.find((row) => row.key === props.sessionKey);
