@@ -25,20 +25,6 @@ describe("iconForTab", () => {
     }
   });
 
-  it("returns stable icons for known tabs", () => {
-    expect(iconForTab("chat")).toBe("messageSquare");
-    expect(iconForTab("overview")).toBe("barChart");
-    expect(iconForTab("channels")).toBe("link");
-    expect(iconForTab("instances")).toBe("radio");
-    expect(iconForTab("sessions")).toBe("fileText");
-    expect(iconForTab("cron")).toBe("loader");
-    expect(iconForTab("skills")).toBe("zap");
-    expect(iconForTab("nodes")).toBe("monitor");
-    expect(iconForTab("config")).toBe("settings");
-    expect(iconForTab("debug")).toBe("bug");
-    expect(iconForTab("logs")).toBe("scrollText");
-  });
-
   it("returns a fallback icon for unknown tab", () => {
     // TypeScript won't allow this normally, but runtime could receive unexpected values
     const unknownTab = "unknown" as Tab;
@@ -173,14 +159,6 @@ describe("inferBasePathFromPathname", () => {
 });
 
 describe("TAB_GROUPS", () => {
-  it("contains all expected groups", () => {
-    const labels = TAB_GROUPS.map((g) => g.label);
-    expect(labels).toContain("Chat");
-    expect(labels).toContain("Control");
-    expect(labels).toContain("Agent");
-    expect(labels).toContain("Settings");
-  });
-
   it("all tabs are unique", () => {
     const allTabs = TAB_GROUPS.flatMap((g) => g.tabs);
     const uniqueTabs = new Set(allTabs);

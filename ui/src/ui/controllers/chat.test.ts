@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { handleChatEvent, type ChatEventPayload, type ChatState } from "./chat.ts";
+import { describe, expect, it, vi } from "vitest";
+import { handleChatEvent, loadChatHistory, type ChatEventPayload, type ChatState } from "./chat.ts";
 
 function createState(overrides: Partial<ChatState> = {}): ChatState {
   return {
@@ -125,67 +125,50 @@ describe("handleChatEvent", () => {
     expect(state.chatMessages).toEqual([existingMessage, partialMessage]);
   });
 
-  it("falls back to streamed partial when aborted payload message is invalid", () => {
-    const existingMessage = {
-      role: "user",
-      content: [{ type: "text", text: "Hi" }],
-      timestamp: 1,
-    };
-    const state = createState({
-      sessionKey: "main",
-      chatRunId: "run-1",
-      chatStream: "Partial reply",
-      chatStreamStartedAt: 100,
-      chatMessages: [existingMessage],
-    });
-    const payload = {
-      runId: "run-1",
-      sessionKey: "main",
-      state: "aborted",
-      message: "not-an-assistant-message",
-    } as unknown as ChatEventPayload;
-
-    expect(handleChatEvent(state, payload)).toBe("aborted");
-    expect(state.chatRunId).toBe(null);
-    expect(state.chatStream).toBe(null);
-    expect(state.chatStreamStartedAt).toBe(null);
-    expect(state.chatMessages).toHaveLength(2);
-    expect(state.chatMessages[0]).toEqual(existingMessage);
-    expect(state.chatMessages[1]).toMatchObject({
-      role: "assistant",
-      content: [{ type: "text", text: "Partial reply" }],
-    });
-  });
-
-  it("falls back to streamed partial when aborted payload has non-assistant role", () => {
-    const existingMessage = {
-      role: "user",
-      content: [{ type: "text", text: "Hi" }],
-      timestamp: 1,
-    };
-    const state = createState({
-      sessionKey: "main",
-      chatRunId: "run-1",
-      chatStream: "Partial reply",
-      chatStreamStartedAt: 100,
-      chatMessages: [existingMessage],
-    });
-    const payload: ChatEventPayload = {
-      runId: "run-1",
-      sessionKey: "main",
-      state: "aborted",
-      message: {
-        role: "user",
-        content: [{ type: "text", text: "unexpected" }],
+  it("falls back to streamed partial for invalid aborted assistant payloads", () => {
+    const invalidPayloads: ChatEventPayload[] = [
+      {
+        runId: "run-1",
+        sessionKey: "main",
+        state: "aborted",
+        message: "not-an-assistant-message",
+      } as unknown as ChatEventPayload,
+      {
+        runId: "run-1",
+        sessionKey: "main",
+        state: "aborted",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "unexpected" }],
+        },
       },
-    };
+    ];
 
-    expect(handleChatEvent(state, payload)).toBe("aborted");
-    expect(state.chatMessages).toHaveLength(2);
-    expect(state.chatMessages[1]).toMatchObject({
-      role: "assistant",
-      content: [{ type: "text", text: "Partial reply" }],
-    });
+    for (const payload of invalidPayloads) {
+      const existingMessage = {
+        role: "user",
+        content: [{ type: "text", text: "Hi" }],
+        timestamp: 1,
+      };
+      const state = createState({
+        sessionKey: "main",
+        chatRunId: "run-1",
+        chatStream: "Partial reply",
+        chatStreamStartedAt: 100,
+        chatMessages: [existingMessage],
+      });
+
+      expect(handleChatEvent(state, payload)).toBe("aborted");
+      expect(state.chatRunId).toBe(null);
+      expect(state.chatStream).toBe(null);
+      expect(state.chatStreamStartedAt).toBe(null);
+      expect(state.chatMessages).toHaveLength(2);
+      expect(state.chatMessages[0]).toEqual(existingMessage);
+      expect(state.chatMessages[1]).toMatchObject({
+        role: "assistant",
+        content: [{ type: "text", text: "Partial reply" }],
+      });
+    }
   });
 
   it("processes aborted from own run without message and empty stream", () => {
@@ -212,5 +195,180 @@ describe("handleChatEvent", () => {
     expect(state.chatStream).toBe(null);
     expect(state.chatStreamStartedAt).toBe(null);
     expect(state.chatMessages).toEqual([existingMessage]);
+  });
+
+  it("does not append aborted assistant payloads with empty content", () => {
+    const existingMessage = {
+      role: "user",
+      content: [{ type: "text", text: "Hi" }],
+      timestamp: 1,
+    };
+    const state = createState({
+      sessionKey: "main",
+      chatRunId: "run-1",
+      chatStream: "",
+      chatStreamStartedAt: 100,
+      chatMessages: [existingMessage],
+    });
+    const payload: ChatEventPayload = {
+      runId: "run-1",
+      sessionKey: "main",
+      state: "aborted",
+      message: {
+        role: "assistant",
+        content: [],
+      },
+    };
+
+    expect(handleChatEvent(state, payload)).toBe("aborted");
+    expect(state.chatMessages).toEqual([existingMessage]);
+  });
+});
+
+describe("loadChatHistory", () => {
+  it("keeps legacy assistant string-content history entries", async () => {
+    const request = vi.fn().mockResolvedValue({
+      messages: [
+        { role: "assistant", content: "legacy assistant text", timestamp: 1 },
+        { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 2 },
+      ],
+      thinkingLevel: "off",
+    });
+    const state = createState({
+      connected: true,
+      client: { request } as unknown as ChatState["client"],
+    });
+
+    await loadChatHistory(state);
+
+    expect(state.chatMessages).toEqual([
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "legacy assistant text" }],
+        timestamp: 1,
+      },
+      { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 2 },
+    ]);
+  });
+
+  it("filters legacy assistant blank string-content entries", async () => {
+    const request = vi.fn().mockResolvedValue({
+      messages: [
+        { role: "assistant", content: "   ", timestamp: 1 },
+        { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 2 },
+      ],
+      thinkingLevel: "off",
+    });
+    const state = createState({
+      connected: true,
+      client: { request } as unknown as ChatState["client"],
+    });
+
+    await loadChatHistory(state);
+
+    expect(state.chatMessages).toEqual([
+      { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 2 },
+    ]);
+  });
+
+  it("filters empty assistant error entries from history", async () => {
+    const request = vi.fn().mockResolvedValue({
+      messages: [
+        { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 1 },
+        { role: "assistant", stopReason: "error", content: [], timestamp: 2 },
+        { role: "assistant", stopReason: "error", timestamp: 3 },
+      ],
+      thinkingLevel: "off",
+    });
+    const state = createState({
+      connected: true,
+      client: { request } as unknown as ChatState["client"],
+    });
+
+    await loadChatHistory(state);
+
+    expect(state.chatMessages).toEqual([
+      { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 1 },
+    ]);
+    expect(state.chatThinkingLevel).toBe("off");
+  });
+
+  it("ignores stale history responses and keeps the newest result", async () => {
+    let resolveFirst: ((value: { messages: unknown[]; thinkingLevel: string }) => void) | null =
+      null;
+    let resolveSecond: ((value: { messages: unknown[]; thinkingLevel: string }) => void) | null =
+      null;
+
+    const request = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ messages: unknown[]; thinkingLevel: string }>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ messages: unknown[]; thinkingLevel: string }>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    const state = createState({
+      connected: true,
+      client: { request } as unknown as ChatState["client"],
+    });
+
+    const first = loadChatHistory(state);
+    const second = loadChatHistory(state);
+
+    resolveSecond?.({
+      messages: [{ role: "assistant", content: [{ type: "text", text: "new" }], timestamp: 2 }],
+      thinkingLevel: "high",
+    });
+    await second;
+
+    resolveFirst?.({
+      messages: [{ role: "assistant", content: [{ type: "text", text: "old" }], timestamp: 1 }],
+      thinkingLevel: "off",
+    });
+    await first;
+
+    expect(state.chatMessages).toEqual([
+      { role: "assistant", content: [{ type: "text", text: "new" }], timestamp: 2 },
+    ]);
+    expect(state.chatThinkingLevel).toBe("high");
+    expect(state.chatLoading).toBe(false);
+  });
+
+  it("ignores a history response when the session key changes mid-flight", async () => {
+    let resolveRequest: ((value: { messages: unknown[]; thinkingLevel: string }) => void) | null =
+      null;
+    const request = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ messages: unknown[]; thinkingLevel: string }>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    const state = createState({
+      sessionKey: "main",
+      connected: true,
+      client: { request } as unknown as ChatState["client"],
+    });
+
+    const pending = loadChatHistory(state);
+    state.sessionKey = "other";
+    resolveRequest?.({
+      messages: [
+        { role: "assistant", content: [{ type: "text", text: "old-main" }], timestamp: 1 },
+      ],
+      thinkingLevel: "off",
+    });
+    await pending;
+
+    expect(state.chatMessages).toEqual([]);
+    expect(state.chatThinkingLevel).toBe(null);
+    expect(state.chatLoading).toBe(false);
   });
 });

@@ -31,10 +31,8 @@ import {
 import { renderApp } from "./app-render.ts";
 import {
   exportLogs as exportLogsInternal,
-  handleChatScroll as handleChatScrollInternal,
   handleLogsScroll as handleLogsScrollInternal,
   resetChatScroll as resetChatScrollInternal,
-  scheduleChatScroll as scheduleChatScrollInternal,
 } from "./app-scroll.ts";
 import {
   applySettings as applySettingsInternal,
@@ -343,7 +341,7 @@ export class OpenClawApp extends LitElement {
   private chatScrollTimeout: number | null = null;
   private chatHasAutoScrolled = false;
   private chatUserNearBottom = true;
-  @state() chatNewMessagesBelow = false;
+  readonly chatUsesAssistantViewport = true;
   private nodesPollInterval: number | null = null;
   private logsPollInterval: number | null = null;
   private debugPollInterval: number | null = null;
@@ -384,13 +382,6 @@ export class OpenClawApp extends LitElement {
     connectGatewayInternal(this as unknown as Parameters<typeof connectGatewayInternal>[0]);
   }
 
-  handleChatScroll(event: Event) {
-    handleChatScrollInternal(
-      this as unknown as Parameters<typeof handleChatScrollInternal>[0],
-      event,
-    );
-  }
-
   handleLogsScroll(event: Event) {
     handleLogsScrollInternal(
       this as unknown as Parameters<typeof handleLogsScrollInternal>[0],
@@ -411,12 +402,24 @@ export class OpenClawApp extends LitElement {
   }
 
   scrollToBottom(opts?: { smooth?: boolean }) {
-    resetChatScrollInternal(this as unknown as Parameters<typeof resetChatScrollInternal>[0]);
-    scheduleChatScrollInternal(
-      this as unknown as Parameters<typeof scheduleChatScrollInternal>[0],
-      true,
-      Boolean(opts?.smooth),
-    );
+    const action =
+      this.querySelector<HTMLButtonElement>(".chat-compose__scroll .chat-new-messages") ??
+      this.querySelector<HTMLButtonElement>(".chat-thread-footer .chat-new-messages");
+    if (action && !action.disabled) {
+      action.click();
+      return;
+    }
+    const container = this.querySelector<HTMLElement>(".chat-thread");
+    if (container) {
+      const behavior: ScrollBehavior = opts?.smooth ? "smooth" : "auto";
+      if (typeof container.scrollTo === "function") {
+        container.scrollTo({ top: container.scrollHeight, behavior });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+      container.dispatchEvent(new Event("scroll", { bubbles: true }));
+      return;
+    }
   }
 
   async loadAssistantIdentity() {

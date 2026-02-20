@@ -172,7 +172,6 @@ export function renderChatControls(state: AppViewState) {
         @click=${async () => {
           const app = state as unknown as OpenClawApp;
           app.chatManualRefreshInFlight = true;
-          app.chatNewMessagesBelow = false;
           await app.updateComplete;
           app.resetToolStream();
           try {
@@ -183,7 +182,6 @@ export function renderChatControls(state: AppViewState) {
           } finally {
             requestAnimationFrame(() => {
               app.chatManualRefreshInFlight = false;
-              app.chatNewMessagesBelow = false;
             });
           }
         }}
